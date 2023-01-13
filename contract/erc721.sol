@@ -16,33 +16,51 @@ contract PARK is ERC721, ERC721URIStorage, ERC721Burnable, AccessControl {
         _grantRole(TRANSFER_ROLE, msg.sender);
     }
 
-    mapping (uint => uint) _productionCost;
+    mapping (bytes32 => uint) _productionCost;
+    mapping (uint => bytes32) _ticketName;
 
-
-    function getProductionCost(uint tokenId) public view returns(uint) {
-        return _productionCost[tokenId];
+    // For Business
+    // Set(Create,Update,Delete) ticket Cost
+    // Cost=0 => Unregistered ticket
+    function setProductionCost(bytes32 name, uint256 cost) external onlyRole(MINTER_ROLE) {
+        _productionCost[name] = cost;
     }
-    //KRW
-    function safeMint(address to, uint256 tokenId, string memory uri,uint256 cost)
-        public
-        onlyRole(MINTER_ROLE)
-    {
+
+    // Get(Read) ticket Cost
+    function getProductionCost(bytes32 name) public view returns(uint256) {
+        return _productionCost[name];
+    }
+
+    // Getter
+    function getTicketName(string memory name) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(name));
+    }
+
+    function getNFTOriginCost(uint tokenId) public view returns(uint) {
+        return _productionCost[_ticketName[tokenId]];
+    }
+
+
+    // ERC721 Function
+    function safeMint(address to, uint256 tokenId, string memory uri, bytes32 name) public onlyRole(MINTER_ROLE) {
+        require(_productionCost[name] != 0,"Unregistered ticket");
+
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
-        _productionCost[tokenId] = cost;
+        _ticketName[tokenId] = name;
 
-        approvalForAllProxy(to);
+        approvalForAllProxy(to,msg.sender);
     }
 
-    function approvalForAllProxy(address holder) public onlyRole(TRANSFER_ROLE) {
-        _setApprovalForAll(holder,msg.sender,true);
+    function approvalForAllProxy(address holder, address operator) public onlyRole(TRANSFER_ROLE) {
+        _setApprovalForAll(holder,operator,true);
     }
 
-    // The following functions are overrides required by Solidity.
 
+    // Refund function
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
         super._burn(tokenId);
-        delete _productionCost[tokenId];
+        delete _ticketName[tokenId];
     }
 
     function tokenURI(uint256 tokenId)
@@ -68,7 +86,6 @@ contract PARK is ERC721, ERC721URIStorage, ERC721Burnable, AccessControl {
         address to,
         uint256 tokenId
     ) public virtual override onlyRole(TRANSFER_ROLE) {
-        //solhint-disable-next-line max-line-length
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
 
         _transfer(from, to, tokenId);
@@ -99,12 +116,18 @@ contract market {
         uint256 tokenId,
         uint _cost) public {
         
-        
-        uint Origin_cost = park.getProductionCost(tokenId);
-        require(_cost < Origin_cost);
+        // 민팅되었을 때 정해진 원작 가격보다 높은 가격에 listing되면 fail
+        uint original_cost = park.getNFTOriginCost(tokenId);
+        require(_cost < original_cost,"The price is higher than the original price.");
+
+        // 구매자가 구매요청 시, market contract가 transfer할 수 있게 권한 부여
+        // 이미 부여된 경우, 실행 x
         if(!park.isApprovedForAll(from, address(this))) {
-            park.approvalForAllProxy(from);
+            park.approvalForAllProxy(from,address(this));
         }
-        park.transferFrom(from, to, tokenId);
+
+        // park.transferFrom(from, to, tokenId);
+
+        // 대충 listing하는 로직
     }
 }
