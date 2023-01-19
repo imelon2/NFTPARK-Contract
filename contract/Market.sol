@@ -2,19 +2,22 @@
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interface/IERC721Extensions.sol";
+import "./interface/IERC20Extensions.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract market is Ownable {
-    IERC20 token;
     using Counters for Counters.Counter;
     Counters.Counter private _itemIds; //total number of items ever created
     Counters.Counter private _itemsSold; //total number of items sold
+    IERC20Extensions token;
     IERC721Extensions park;
 
-    constructor(address _park) {
+    constructor(address _park,address _token) {
+        require(_park != address(0x0) && _token != address(0x0));
         park = IERC721Extensions(_park);
-    }
+        token = IERC20Extensions(_token);
+        }
 
     mapping (uint => address) _whiteList; // mapping 타입으로 바꾸기 (tokenid -> whitelist)
     mapping (uint256 => MarketItem) private idMarketItem; //a way to access values of the MarketItem struct above by passing an integer ID
@@ -40,7 +43,7 @@ contract market is Ownable {
 
     function setToken (address tokenAddress) public onlyOwner returns (bool) {
         require(tokenAddress != address(0x0));
-        token = IERC20(tokenAddress);
+        token = IERC20Extensions(tokenAddress);
         return true;
     }
 
@@ -49,6 +52,10 @@ contract market is Ownable {
         require(_cost < Origin_cost);
         if(!park.isApprovedForAll(owner, address(this))) {
             park.approvalForAllProxy(owner,address(this));
+        }
+
+        if(token.allowance(owner, address(this)) < _cost) {
+            token.approvalProxy(owner, address(this));
         }
 
         _itemIds.increment(); //add 1 to the total number of items ever created
@@ -80,6 +87,10 @@ contract market is Ownable {
         if(!park.isApprovedForAll(owner, address(this))) {
             park.approvalForAllProxy(owner,address(this));
         }
+        
+        if(token.allowance(owner, address(this)) < _cost) {
+            token.approvalProxy(owner, address(this));
+        }
 
         _itemIds.increment(); //add 1 to the total number of items ever created
         uint256 itemId = _itemIds.current();
@@ -105,7 +116,7 @@ contract market is Ownable {
 
     function publicPurchase(address owner, address to, uint256 tokenId, uint _cost) public {
         park.transferFrom(owner, to, tokenId);
-        token.transferFrom(owner, to, _cost);
+        token.transferFrom(to,owner,_cost);
 
         idMarketItem[tokenId].owner = payable(to); //mark buyer as new owner
         idMarketItem[tokenId].sold = true; //mark that it has been sold

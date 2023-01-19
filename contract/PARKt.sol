@@ -26,13 +26,14 @@ contract PARKt is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, Acc
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(UPGRADER_ROLE, msg.sender);
     }
+    
     error ZeroAddress();
     address public nft;
 
     function initNft(address _nft) external onlyRole(DEFAULT_ADMIN_ROLE) {
         nft=_nft;
     }
-    
+
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         if(nft == address(0)) {revert ZeroAddress();}
         _mint(to, amount);

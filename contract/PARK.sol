@@ -56,6 +56,11 @@ contract PARK is Initializable, ERC721Upgradeable, ERC721URIStorageUpgradeable, 
     mapping (uint256 => bytes32) _title;
     mapping (bytes32 => uint) _snapshot;
 
+    function registerTicket(bytes32 title,uint256 cost) external onlyRole(MANAGER_ROLE) {
+        _productionCost[title] = cost;
+        _snapshot[title] = block.number;
+    }
+
     // Get(Read) ticket Cost
     function getProductionCost(bytes32 title) public view returns(uint256) {
         return _productionCost[title];
