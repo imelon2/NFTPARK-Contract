@@ -29,7 +29,6 @@ contract Ticketing is Ownable {
 
     event Enter(address applicant,bytes32 title);
 
-
     // 응모
     function enter(address applicant, bytes32 title) external onlyOwner {
         // 등록되지 않은 티켓에 응모할 경우

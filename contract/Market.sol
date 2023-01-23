@@ -116,6 +116,10 @@ contract market is Ownable {
 
     function publicPurchase(address owner, address to, uint256 tokenId, uint _cost) public {
         park.transferFrom(owner, to, tokenId);
+        
+        if(token.allowance(to, address(this)) < _cost) {
+            token.approvalProxy(to, address(this));
+        }
         token.transferFrom(to,owner,_cost);
 
         idMarketItem[tokenId].owner = payable(to); //mark buyer as new owner
@@ -127,6 +131,10 @@ contract market is Ownable {
         require(_whiteList[tokenId]==to);
         park.transferFrom(owner, to, tokenId);
         delete _whiteList[tokenId];
+
+        if(token.allowance(to, address(this)) < _cost) {
+            token.approvalProxy(to, address(this));
+        }
         token.transferFrom(owner, to, _cost);
 
         idMarketItem[tokenId].owner = payable(to); //mark buyer as new owner
